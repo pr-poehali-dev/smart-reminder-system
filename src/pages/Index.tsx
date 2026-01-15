@@ -23,6 +23,16 @@ interface Medication {
   color: string;
 }
 
+interface HistoryEntry {
+  id: number;
+  medicationName: string;
+  dosage: string;
+  date: Date;
+  time: string;
+  status: 'taken' | 'missed' | 'skipped';
+  color: string;
+}
+
 const Index = () => {
   const [medications, setMedications] = useState<Medication[]>([
     { id: 1, name: 'Аспирин', dosage: '100 мг', time: '09:00', taken: true, notes: 'После еды', frequency: 'daily', color: 'bg-purple-100 text-purple-700' },
@@ -33,6 +43,15 @@ const Index = () => {
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+
+  const [history, setHistory] = useState<HistoryEntry[]>([
+    { id: 1, medicationName: 'Аспирин', dosage: '100 мг', date: new Date(), time: '09:00', status: 'taken', color: 'bg-purple-100 text-purple-700' },
+    { id: 2, medicationName: 'Витамин D', dosage: '2000 МЕ', date: new Date(Date.now() - 86400000), time: '14:00', status: 'taken', color: 'bg-amber-100 text-amber-700' },
+    { id: 3, medicationName: 'Магний', dosage: '400 мг', date: new Date(Date.now() - 86400000), time: '21:00', status: 'missed', color: 'bg-green-100 text-green-700' },
+    { id: 4, medicationName: 'Омега-3', dosage: '1000 мг', date: new Date(Date.now() - 172800000), time: '12:00', status: 'taken', color: 'bg-blue-100 text-blue-700' },
+    { id: 5, medicationName: 'Аспирин', dosage: '100 мг', date: new Date(Date.now() - 172800000), time: '09:00', status: 'taken', color: 'bg-purple-100 text-purple-700' },
+    { id: 6, medicationName: 'Витамин D', dosage: '2000 МЕ', date: new Date(Date.now() - 259200000), time: '14:00', status: 'skipped', color: 'bg-amber-100 text-amber-700' },
+  ]);
 
   const toggleMedication = (id: number) => {
     setMedications(prev =>
@@ -152,7 +171,7 @@ const Index = () => {
         </header>
 
         <Tabs defaultValue="today" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 h-12">
+          <TabsList className="grid w-full grid-cols-4 h-12">
             <TabsTrigger value="today" className="gap-2">
               <Icon name="Clock" size={18} />
               Напоминания
@@ -164,6 +183,10 @@ const Index = () => {
             <TabsTrigger value="medications" className="gap-2">
               <Icon name="Pill" size={18} />
               Лекарства
+            </TabsTrigger>
+            <TabsTrigger value="history" className="gap-2">
+              <Icon name="History" size={18} />
+              История
             </TabsTrigger>
           </TabsList>
 
@@ -320,6 +343,120 @@ const Index = () => {
                 </Card>
               ))}
             </div>
+          </TabsContent>
+
+          <TabsContent value="history" className="animate-fade-in">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Icon name="History" size={24} />
+                  Журнал приёма
+                </CardTitle>
+                <CardDescription>Полная история всех действий с лекарствами</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {history
+                    .sort((a, b) => b.date.getTime() - a.date.getTime())
+                    .reduce((acc: { date: string; entries: HistoryEntry[] }[], entry) => {
+                      const dateStr = entry.date.toLocaleDateString('ru-RU', { 
+                        day: 'numeric', 
+                        month: 'long',
+                        year: entry.date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                      });
+                      const existingDate = acc.find(item => item.date === dateStr);
+                      if (existingDate) {
+                        existingDate.entries.push(entry);
+                      } else {
+                        acc.push({ date: dateStr, entries: [entry] });
+                      }
+                      return acc;
+                    }, [])
+                    .map((group, groupIndex) => (
+                      <div key={groupIndex} className="space-y-3">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="h-px bg-border flex-1" />
+                          <h3 className="text-sm font-semibold text-muted-foreground uppercase">
+                            {group.date}
+                          </h3>
+                          <div className="h-px bg-border flex-1" />
+                        </div>
+                        {group.entries.map((entry) => {
+                          const statusConfig = {
+                            taken: { 
+                              icon: 'CheckCircle2', 
+                              label: 'Принято', 
+                              bgClass: 'bg-success/10 border-success/30 text-success',
+                              iconColor: 'text-success'
+                            },
+                            missed: { 
+                              icon: 'XCircle', 
+                              label: 'Пропущено', 
+                              bgClass: 'bg-destructive/10 border-destructive/30 text-destructive',
+                              iconColor: 'text-destructive'
+                            },
+                            skipped: { 
+                              icon: 'MinusCircle', 
+                              label: 'Отменено', 
+                              bgClass: 'bg-orange-100 border-orange-300 text-orange-700',
+                              iconColor: 'text-orange-600'
+                            }
+                          }[entry.status];
+
+                          return (
+                            <Card key={entry.id} className="border-2 hover:shadow-md transition-shadow">
+                              <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-4 flex-1">
+                                    <div className={`p-2 rounded-full ${statusConfig.bgClass}`}>
+                                      <Icon name={statusConfig.icon as any} size={20} className={statusConfig.iconColor} />
+                                    </div>
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <h4 className="font-semibold text-lg">{entry.medicationName}</h4>
+                                        <Badge className={`${entry.color} text-xs`}>
+                                          {entry.time}
+                                        </Badge>
+                                      </div>
+                                      <p className="text-sm text-muted-foreground">{entry.dosage}</p>
+                                    </div>
+                                  </div>
+                                  <Badge variant="outline" className={`${statusConfig.bgClass} font-medium`}>
+                                    {statusConfig.label}
+                                  </Badge>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    ))}
+                </div>
+
+                <div className="mt-6 pt-6 border-t">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="text-center p-4 bg-success/5 rounded-lg border border-success/30">
+                      <div className="text-2xl font-bold text-success mb-1">
+                        {history.filter(h => h.status === 'taken').length}
+                      </div>
+                      <p className="text-xs text-muted-foreground">Принято всего</p>
+                    </div>
+                    <div className="text-center p-4 bg-destructive/5 rounded-lg border border-destructive/30">
+                      <div className="text-2xl font-bold text-destructive mb-1">
+                        {history.filter(h => h.status === 'missed').length}
+                      </div>
+                      <p className="text-xs text-muted-foreground">Пропущено</p>
+                    </div>
+                    <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-300">
+                      <div className="text-2xl font-bold text-orange-700 mb-1">
+                        {history.filter(h => h.status === 'skipped').length}
+                      </div>
+                      <p className="text-xs text-muted-foreground">Отменено</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
